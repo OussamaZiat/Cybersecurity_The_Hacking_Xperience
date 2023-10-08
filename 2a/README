@@ -1,0 +1,20 @@
+all the html files are in the ressources folder
+
+# test cases
+
+### Plain http site: 
+http://www.example.com/
+
+`./wgetX http://www.example.com/` ==> index.html
+
+`./wgetX http://www.example.com/ example` ==> example
+
+### Plain http site with a path
+http://lushbrightquietsunset.neverssl.com/online/
+
+`./wgetX http://lushbrightquietsunset.neverssl.com/online/ path` ==> path
+
+### Binary object with a path
+http://inapcache.boston.com/universal/site_graphics/blogs/bigpicture/2010_1_12_14/y04_23905819.jpg
+
+`./wgetX http://inapcache.boston.com/universal/site_graphics/blogs/bigpicture/2010_1_12_14/y04_23905819.jpg binary_object` ==> binary_object

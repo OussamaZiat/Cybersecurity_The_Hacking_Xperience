@@ -1,0 +1,98 @@
+# Concurrent UDP Server
+
+The concurrent UDP server (concserver.c) is designed to receive messages from clients and resend them back to the clients. It 
+can handle up to 50 threads concurrently. If the server is too busy, it will send a warning message to the client.
+
+
+### Server Socket and Address Setup
+
+    ** The server first extracts the port number from the command-line arguments.
+    ** It then creates a UDP socket using the socket() function with AF_INET (IPv4) as the address family, SOCK_DGRAM (UDP)  
+    as the socket type, and the default protocol.
+    ** A sockaddr_in structure, server_addr, is created and initialized to store the server's address information. 
+    ** The server socket is then bound to the server_addr structure using the bind() function.
+
+### Message Receiving Loop and Thread Management
+
+The server enters an infinite loop to continuously receive messages from clients:
+
+    ** A sockaddr_in structure, from, is created and dynamically allocated to store the client's address information.
+    ** A message buffer, msg_buffer, is created and dynamically allocated to store the received message. The message buffer 
+    is initialized with zeros.
+    ** The server receives the message from the client using the recvfrom() function, storing the received message in 
+    msg_buffer and the client's address in from.
+    ** The server checks the number of active threads (active). If the number is less than the maximum allowed `(50)`, it 
+    proceeds to create a new thread to resend the message to the client. Otherwise, it sends a warning message to the client, 
+    indicating that the server is too busy.
+
+### Thread Function and Structure
+
+    ** A resend_message function is defined to be executed by the newly created threads. This function is responsible for 
+    resending the received message back to the client.
+    ** A server_args structure is defined to pass `multiple arguments` to the resend_message function.
+    ** The server initializes a server_args structure, var, with the required information and increments the active counter.
+    ** A new thread is created using the pthread_create() function, passing the resend_message function and the server_args  
+    structure as arguments.
+
+### Resending Messages in Threads
+
+    ** The server waits for 1 millisecond using the usleep() function to simulate processing time.
+    ** The server sends the received message back to the client using the sendto() function, passing the server socket, 
+    message buffer, message length, an the client's sockaddr_in structure.
+    ** If the sent message length does not match the received message length, the server prints a warning that the message 
+    was not sent entirely.
+    ** After successfully resending the message, the server decrements the active counter to indicate that the thread has 
+    finished its task.
+
+### Synchronization
+
+A mutex, mutex, is used to synchronize access to shared resources such as the message buffer and active thread counter. The 
+server locks the mutex using 
+`pthread_mutex_lock()` before accessing shared resources and unlocks it using `pthread_mutex_unlock()` after finishing the 
+operation.
+
+This ensures that threads do not interfere with each other, resulting in correct and consistent behavior.
+
+
+## Usage
+
+To start the server, execute the following command, replacing <port> with the desired port number:
+
+`./concserver <port>`
+
+The server will then start listening for client messages on the specified port. When a message is received, the server will 
+create a new thread (up to the maximum allowed) to resend the message back to the client. If the server is too busy, it will 
+send a warning message to the client instead.
+
+
+# Concurrent UDP client
+
+The client can simultaneously read and send requests while receiving replies from the server.
+
+## Main Function
+
+The main function of the client side does the following:
+
+    ** Parses the IP address and port number from command-line arguments.
+    ** Creates a UDP socket and binds it to a client-side port.
+    ** Prepares the server's sockaddr_in structure using the provided IP address and port number.
+    ** Creates two threads: one for sending messages and another for receiving messages. Each thread runs a specific function
+    (send_message and receive_message), and they share the socket and server address information.
+
+### Sending Messages
+
+The `send_message` function reads user input and sends it to the server. It ensures that the entire message is sent and uses 
+a mutex to protect shared resources.
+
+### Receiving Messages
+
+The `receive_message` function listens for incoming messages from the server. When a message is received, it prints the 
+message length and content. It also uses a mutex to protect shared resources.
+
+
+## Usage
+
+
+To start the client, execute the following command, replacing <IP_address> with the server's IP address and <port> with the server's port number:
+
+`./conclient <IP_address> <port>`

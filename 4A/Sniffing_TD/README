@@ -1,0 +1,7 @@
+I have chage the code 
+I still have some problems, it looks like i don't have peromissions or smth like that 
+i found out that it would be useful to use this command
+==> sudo setcap cap_net_raw+ep pcap_example
+(we can always change the file name)
+it looks like we gave a user access or smth like that 
+happy it did work
